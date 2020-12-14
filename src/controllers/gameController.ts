@@ -107,6 +107,8 @@ export class GameController {
   public async dealCard(req: Request, res: Response) {
     const { gameId } = req.params;
 
+    // TODO: add DealCard for Bots;
+
     const gameInProgress = await Game.findById(gameId);
     if (!gameInProgress) return res.status(404).send({ message: 'Game not found' });
 
