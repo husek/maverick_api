@@ -4,6 +4,7 @@
 **Requirements**
 - Node >= 12
 - Yarn >= 1 && < 2
+- a MongoDB Instance
 
 
 **Instructions**
@@ -15,6 +16,7 @@ After you are done with it, add your own JWT Secret and point to a valid MongoDB
 
 `$ yarn install && yarn build && yarn start`
 
+Copy the API Address and you can already use it via postman, or paste it back on its react counterpart;
 
 ### Authentication
 

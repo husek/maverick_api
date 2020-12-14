@@ -44,17 +44,19 @@ export class GameController {
 
     deckInUse!.availableCards.map((card: string) => {
       const [value, suit] = card;
-      const cardLiteralValue = getCardValue(value);
-      const index = (cardLiteralValue - 1);
+      if (value && suit) {
+        const cardLiteralValue = getCardValue(value);
+        const index = (cardLiteralValue - 1);
 
-      if (!cardStats[suit][index]) {
-        cardStats[suit][index] = { card: value, cardLiteralValue, qty: 1 };
-      } else {
-        cardStats[suit][index] = { card: value, cardLiteralValue, qty: cardStats[suit][index].qty + 1 };
+        if (!cardStats[suit][index]) {
+          cardStats[suit][index] = { card: value, cardLiteralValue, qty: 1 };
+        } else {
+          cardStats[suit][index] = { card: value, cardLiteralValue, qty: cardStats[suit][index].qty + 1 };
+        }
       }
     });
 
-    Object.keys(cardStats).map(key => cardStats[key] = cardStats[key].reverse());
+    Object.keys(cardStats).map(key => cardStats[key] = cardStats[key].filter(Boolean).reverse());
 
     return cardStats;
   }
@@ -105,6 +107,7 @@ export class GameController {
   }
 
   public async dealCard(req: Request, res: Response) {
+    const { username } = res.locals.jwt;
     const { gameId } = req.params;
 
     // TODO: add DealCard for Bots;
@@ -121,16 +124,24 @@ export class GameController {
     const availableCards = [...deckInUse.availableCards];
     availableCards.splice(cardIndex, 1);
 
-    await deckInUse.update({
-      shuffled: true,
-      availableCards: [...deckInUse.availableCards],
-      usedCards: [...deckInUse.usedCards, card]
-    });
+    deckInUse.shuffled = true;
+    deckInUse.availableCards = [...availableCards];
+    deckInUse.usedCards = [...deckInUse.usedCards, card];
+
+    await deckInUse.save();
+
+    gameInProgress.players.map(player => {
+      if (player.username === username) {
+        player.cards = [...player.cards, card]
+      }
+    })
+
+    await gameInProgress.save();
 
     const score = await GameController.getScore(gameInProgress);
     const stats = await GameController.getGameStats(gameInProgress);
 
-    return res.status(200).send({ ...gameInProgress, stats, score, deckInUse }).end();
+    return res.status(200).send({ ...gameInProgress.toObject(), stats, score, gameDeck: deckInUse.toObject() }).end();
 
   }
 
@@ -182,19 +193,29 @@ export class GameController {
         players: [...gameInProgress.players, { playerId, username, cards: [] }]
       });
 
-      return res.status(200).send(gameInProgress).end();
+      const score = await GameController.getScore(gameInProgress);
+      const stats = await GameController.getGameStats(gameInProgress);
+
+      return res.status(200).send({ ...gameInProgress, stats, score }).end();
     }
 
     const player = res.locals.jwt;
     const { username, _id: playerId } = player;
 
-    if (!gameInProgress.players.find(player => player.playerId === playerId)) {
-      await gameInProgress.update({
-        players: [...gameInProgress.players, { username, playerId, cards: [] }]
-      });
+
+    let players = [...gameInProgress.players];
+
+    if (await !gameInProgress.players.find(player => player.playerId == playerId)) {
+      players = [...gameInProgress.players, { username, playerId, cards: [] }];
     }
 
-    return res.status(200).send(gameInProgress).end();
+    gameInProgress.players = players;
+    gameInProgress.save();
+
+    const score = await GameController.getScore(gameInProgress);
+    const stats = await GameController.getGameStats(gameInProgress);
+
+    return res.status(200).send({ ...gameInProgress.toObject(), stats, score }).end();
   }
 
   public async leaveGame(req: Request, res: Response) {
