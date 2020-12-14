@@ -12,9 +12,8 @@ _Eg: development.env_
 
 After you are done with it, add your own JWT Secret and point to a valid MongoDB URL (with password ofc);
 
-```
-$ yarn install && yarn build && yarn start
-```
+`$ yarn install && yarn build && yarn start`
+
 
 ###Authentication
 Certain routes are protect, in order to access those routes remember to include your JWT Token (acquired via login) to your request headers as follows:
